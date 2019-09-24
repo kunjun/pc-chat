@@ -22,6 +22,7 @@ import { fs } from 'file-system';
 import BenzAMRRecorder from 'benz-amr-recorder';
 import MessageConfig from '../../../wfc/messageConfig';
 import UnknownMessageContent from '../../../wfc/messages/unknownMessageContent';
+import EventType from '../../../wfc/wfcEvent';
 
 
 @inject(stores => ({
@@ -33,6 +34,12 @@ import UnknownMessageContent from '../../../wfc/messages/unknownMessageContent';
     loadOldMessages: stores.chat.loadOldMessages,
     conversation: stores.chat.conversation,
     target: stores.chat.target,
+    getTimePanel: (messageTime) => {
+        // 当天的消息，以每5分钟为一个跨度显示时间；
+        // 消息超过1天、小于1周，显示为“星期 消息发送时间”；
+        // 消息大于1周，显示为“日期 消息发送时间”。
+
+    },
     reset: () => {
         //stores.chat.user = false;
     },
@@ -322,46 +329,51 @@ export default class ChatContent extends Component {
             // }
 
             return (
-                <div className={clazz('unread', classes.message, {
-                    // File is uploading
-                    [classes.uploading]: message.status === MessageStatus.Sending,
+                <div key={message.messageId}>
+                    <div
+                        className={clazz('unread', classes.message, classes.system)}
+                        dangerouslySetInnerHTML={{ __html: helper.timeFormat(message.timestamp) }} />
+                    <div className={clazz('unread', classes.message, {
+                        // File is uploading
+                        [classes.uploading]: message.status === MessageStatus.Sending,
 
-                    [classes.isme]: message.direction === 0,
-                    //[classes.isText]: type === 1 && !message.location,
-                    [classes.isText]: type === MessageContentType.Text || (message.messageContent instanceof UnknownMessageContent) || (message.messageContent instanceof UnsupportMessageContent),
-                    [classes.isLocation]: type === MessageContentType.Location,
-                    [classes.isImage]: type === MessageContentType.Image,
-                    //[classes.isEmoji]: type === 47 || type === 49 + 8,
-                    [classes.isEmoji]: type === MessageContentType.Sticker,
-                    [classes.isVoice]: type === MessageContentType.Voice,
-                    [classes.isVideo]: type === MessageContentType.Video,
-                    [classes.isFile]: type === MessageContentType.File,
+                        [classes.isme]: message.direction === 0,
+                        //[classes.isText]: type === 1 && !message.location,
+                        [classes.isText]: type === MessageContentType.Text || (message.messageContent instanceof UnknownMessageContent) || (message.messageContent instanceof UnsupportMessageContent),
+                        [classes.isLocation]: type === MessageContentType.Location,
+                        [classes.isImage]: type === MessageContentType.Image,
+                        //[classes.isEmoji]: type === 47 || type === 49 + 8,
+                        [classes.isEmoji]: type === MessageContentType.Sticker,
+                        [classes.isVoice]: type === MessageContentType.Voice,
+                        [classes.isVideo]: type === MessageContentType.Video,
+                        [classes.isFile]: type === MessageContentType.File,
 
-                    [classes.isContact]: type === 42,
-                    // App messages，只在手机上显示的消息
-                    [classes.appMessage]: [49 + 2000, 49 + 17, 49 + 6].includes(type),
-                    [classes.isTransfer]: type === 49 + 2000,
-                    [classes.isLocationSharing]: type === 49 + 17,
-                })} key={message.messageId}>
-                    <div>
-                        <Avatar
-                            //src={message.isme ? message.HeadImgUrl : user.HeadImgUrl}
-                            src={user.portrait ? user.portrait : 'assets/images/user-fallback.png'}
-                            className={classes.avatar}
-                            onClick={ev => this.props.showUserinfo(message.direction === 0, user)}
-                        />
+                        [classes.isContact]: type === 42,
+                        // App messages，只在手机上显示的消息
+                        [classes.appMessage]: [49 + 2000, 49 + 17, 49 + 6].includes(type),
+                        [classes.isTransfer]: type === 49 + 2000,
+                        [classes.isLocationSharing]: type === 49 + 17,
+                    })}>
 
-                        <p
-                            className={classes.username}
-                            //dangerouslySetInnerHTML={{__html: user.DisplayName || user.RemarkName || user.NickName}}
-                            dangerouslySetInnerHTML={{ __html: user.displayName }}
-                        />
+                        <div>
+                            <Avatar
+                                //src={message.isme ? message.HeadImgUrl : user.HeadImgUrl}
+                                src={user.portrait ? user.portrait : 'assets/images/user-fallback.png'}
+                                className={classes.avatar}
+                                onClick={ev => this.props.showUserinfo(message.direction === 0, user)}
+                            />
 
-                        <div className={classes.content}>
                             <p
-                                onContextMenu={e => this.showMessageAction(message)}
-                                dangerouslySetInnerHTML={{ __html: this.getMessageContent(message) }} />
-                            <span className={classes.times}>{moment(message.timestamp).fromNow()}</span>
+                                className={classes.username}
+                                //dangerouslySetInnerHTML={{__html: user.DisplayName || user.RemarkName || user.NickName}}
+                                dangerouslySetInnerHTML={{ __html: user.displayName }}
+                            />
+
+                            <div className={classes.content}>
+                                <p
+                                    onContextMenu={e => this.showMessageAction(message)}
+                                    dangerouslySetInnerHTML={{ __html: this.getMessageContent(message) }} />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -577,7 +589,7 @@ export default class ChatContent extends Component {
         let covnersationInfo = wfc.getConversationInfo(this.props.conversation);
         var menu = new remote.Menu.buildFromTemplate([
             {
-                label: 'Toggle the conversation',
+                label: '全屏模式/正常模式',
                 click: () => {
                     this.props.toggleConversation();
                 }
@@ -586,7 +598,7 @@ export default class ChatContent extends Component {
                 type: 'separator',
             },
             {
-                label: 'Empty Content',
+                label: '清空会话消息',
                 click: () => {
                     this.props.empty(this.props.conversation);
                 }
@@ -595,13 +607,13 @@ export default class ChatContent extends Component {
                 type: 'separator'
             },
             {
-                label: covnersationInfo.isTop ? 'Unsticky' : 'Sticky on Top',
+                label: covnersationInfo.isTop ? '取消置顶' : '置顶',
                 click: () => {
                     this.props.sticky(covnersationInfo);
                 }
             },
             {
-                label: 'Delete',
+                label: '删除会话',
                 click: () => {
                     this.props.removeChat(this.props.conversation);
                 }
@@ -623,9 +635,10 @@ export default class ChatContent extends Component {
             this.props.loadOldMessages();
         }
 
-        if (viewport.clientHeight + viewport.scrollTop === viewport.scrollHeight) {
-            wfc.clearConversationUnreadStatus(this.props.conversation);
-        }
+        // if (viewport.clientHeight + viewport.scrollTop === viewport.scrollHeight) {
+        //     wfc.clearConversationUnreadStatus(this.props.conversation);
+        //     wfc.eventEmitter.emit(EventType.ConversationInfoUpdate, this.props.conversation);
+        // }
 
         Array.from(unread).map(e => {
             if (e.getBoundingClientRect().top > rect.bottom) {
@@ -655,9 +668,17 @@ export default class ChatContent extends Component {
         }
     }
 
+    // shouldComponentUpdate(nextProps, nextState) {
+    //     return true;
+    // }
+
     componentDidUpdate() {
         var viewport = this.refs.viewport;
         var tips = this.refs.tips;
+
+        if (this.props.conversation) {
+            wfc.clearConversationUnreadStatus(this.props.conversation);
+        }
 
         if (viewport) {
             let newestMessage = this.props.messages[this.props.messages.length - 1];
@@ -728,14 +749,11 @@ export default class ChatContent extends Component {
     componentWillReceiveProps(nextProps) {
         // When the chat target has been changed, show the last message in viewport
 
-        if (!!this.props.conversation) {
-            wfc.clearConversationUnreadStatus(this.props.conversation);
-        }
-
-        if (this.props.conversation && nextProps.conversation && !this.props.conversation.equal(nextProps.conversation)) {
-            wfc.clearConversationUnreadStatus(nextProps.conversation);
-            this.scrollTop = -1;
-        }
+        // if (nextProps.conversation) {
+        //     wfc.clearConversationUnreadStatus(nextProps.conversation);
+        //     wfc.eventEmitter.emit(EventType.ConversationInfoUpdate, this.props.conversation);
+        // }
+        this.scrollTop = -1;
         this.stopAudio();
     }
 
@@ -755,9 +773,9 @@ export default class ChatContent extends Component {
     render() {
         var { loading, showConversation, messages, conversation, target } = this.props;
 
-        var signature = 'Click to show members';
+        var signature = '点击查看群成员';
         if (target instanceof UserInfo) {
-            signature = 'TODO signature';
+            signature = '';
         }
 
         // maybe userName, groupName, ChannelName or ChatRoomName
@@ -780,7 +798,7 @@ export default class ChatContent extends Component {
 
                                     <span
                                         className={classes.signature}
-                                        dangerouslySetInnerHTML={{ __html: signature || 'No Signature' }}
+                                        dangerouslySetInnerHTML={{ __html: signature || '' }}
                                         onClick={e => this.props.showMembers(target)}
                                         title={signature} />
                                 </div>
@@ -807,7 +825,7 @@ export default class ChatContent extends Component {
                                 <img
                                     className="disabledDrag"
                                     src="assets/images/noselected.png" />
-                                <h1>No Chat selected :(</h1>
+                                <h1>请选择会话 :(</h1>
                             </div>
                         )
                 }

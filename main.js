@@ -1,13 +1,25 @@
 
 import fs from 'fs';
 import tmp from 'tmp';
-import { app, powerMonitor, BrowserWindow, Tray, Menu, ipcMain, clipboard, shell, nativeImage, dialog } from 'electron';
+import { app, powerMonitor, BrowserWindow, Tray, Menu, ipcMain, clipboard, shell, nativeImage, dialog, globalShortcut } from 'electron';
 import windowStateKeeper from 'electron-window-state';
 import AutoLaunch from 'auto-launch';
 import { autoUpdater } from 'electron-updater';
 import axios from 'axios';
+import i18n from 'i18n';
+import proto from './marswrapper.node';
 
 import pkg from './package.json';
+
+let Locales = {};
+i18n.configure({
+    locales:['en', 'ch'],
+    directory: __dirname + '/locales',
+    register: Locales
+});
+Locales.setLocale('ch');
+
+global.sharedObj = {proto: proto};
 
 let forceQuit = false;
 let downloading = false;
@@ -30,7 +42,7 @@ let mainMenu = [
                 selector: 'orderFrontStandardAboutPanel:',
             },
             {
-                label: 'Preferences...',
+                label: Locales.__('Main').Preferences,
                 accelerator: 'Cmd+,',
                 click() {
                     mainWindow.show();
@@ -50,7 +62,7 @@ let mainMenu = [
                 role: 'unhide'
             },
             {
-                label: 'Check for updates',
+                label: Locales.__('Main').Check,
                 accelerator: 'Cmd+U',
                 click() {
                     checkForUpdates();
@@ -60,7 +72,7 @@ let mainMenu = [
                 type: 'separator'
             },
             {
-                label: 'Quit wildfireChat',
+                label: Locales.__('Main').Quit,
                 accelerator: 'Command+Q',
                 selector: 'terminate:',
                 click() {
@@ -72,10 +84,10 @@ let mainMenu = [
         ]
     },
     {
-        label: 'File',
+        label: Locales.__('File').Title,
         submenu: [
             {
-                label: 'New Chat',
+                label: Locales.__('File').New,
                 accelerator: 'Cmd+N',
                 click() {
                     mainWindow.show();
@@ -83,7 +95,7 @@ let mainMenu = [
                 }
             },
             {
-                label: 'Search...',
+                label: Locales.__('File').Search,
                 accelerator: 'Cmd+F',
                 click() {
                     mainWindow.show();
@@ -91,7 +103,7 @@ let mainMenu = [
                 }
             },
             {
-                label: 'Batch Send Message',
+                label: Locales.__('File').BatchSend,
                 accelerator: 'Cmd+B',
                 click() {
                     mainWindow.show();
@@ -102,7 +114,7 @@ let mainMenu = [
                 type: 'separator',
             },
             {
-                label: 'Insert emoji',
+                label: Locales.__('File').InsertEmoji,
                 accelerator: 'Cmd+I',
                 click() {
                     mainWindow.show();
@@ -113,7 +125,7 @@ let mainMenu = [
                 type: 'separator',
             },
             {
-                label: 'Next conversation',
+                label: Locales.__('File').Next,
                 accelerator: 'Cmd+J',
                 click() {
                     mainWindow.show();
@@ -121,7 +133,7 @@ let mainMenu = [
                 }
             },
             {
-                label: 'Previous conversation',
+                label: Locales.__('File').Prev,
                 accelerator: 'Cmd+K',
                 click() {
                     mainWindow.show();
@@ -130,59 +142,67 @@ let mainMenu = [
             },
         ]
     },
+    // {
+    //     label: Locales.__('Conversations').Title,
+    //     submenu: [
+    //         {
+    //             label: Locales.__('Conversations').Loading,
+    //         }
+    //     ],
+    // },
+    // {
+    //     label: Locales.__('Contacts').Title,
+    //     submenu: [
+    //         {
+    //             label: Locales.__('Contacts').Loading,
+    //         }
+    //     ],
+    // },
     {
-        label: 'Conversations',
+        label: Locales.__('Edit').Title,
         submenu: [
             {
-                label: 'Loading...',
-            }
-        ],
-    },
-    {
-        label: 'Contacts',
-        submenu: [
-            {
-                label: 'Loading...',
-            }
-        ],
-    },
-    {
-        label: 'Edit',
-        submenu: [
-            {
-                role: 'undo'
+                role: 'undo',
+                label: Locales.__('Edit').Undo
             },
             {
-                role: 'redo'
+                role: 'redo',
+                label: Locales.__('Edit').Redo
             },
             {
                 type: 'separator'
             },
             {
-                role: 'cut'
+                role: 'cut',
+                label: Locales.__('Edit').Cut
             },
             {
-                role: 'copy'
+                role: 'copy',
+                label: Locales.__('Edit').Copy
             },
             {
-                role: 'paste'
+                role: 'paste',
+                label: Locales.__('Edit').Paste
             },
             {
-                role: 'pasteandmatchstyle'
+                role: 'pasteandmatchstyle',
+                label: Locales.__('Edit').PasteMatch
             },
             {
-                role: 'delete'
+                role: 'delete',
+                label: Locales.__('Edit').Delete
             },
             {
-                role: 'selectall'
+                role: 'selectall',
+                label: Locales.__('Edit').SelectAll
             }
         ]
     },
     {
-        label: 'View',
+        label: Locales.__('View').Title,
         submenu: [
             {
-                label: isFullScreen ? 'Exit Full Screen' : 'Enter Full Screen',
+                label: isFullScreen ? Locales.__('View').ExitFull : Locales.__('View').EnterFull,
                 accelerator: 'Shift+Cmd+F',
                 click() {
                     isFullScreen = !isFullScreen;
@@ -192,7 +212,7 @@ let mainMenu = [
                 }
             },
             {
-                label: 'Toggle Conversations',
+                label: Locales.__('View').ToggleConversations,
                 accelerator: 'Shift+Cmd+M',
                 click() {
                     mainWindow.show();
@@ -206,35 +226,41 @@ let mainMenu = [
                 type: 'separator',
             },
             {
-                role: 'toggledevtools'
+                role: 'toggledevtools',
+                label: Locales.__('View').ToggleDevtools
             },
             {
-                role: 'togglefullscreen'
+                role: 'togglefullscreen',
+                label: Locales.__('View').ToggleFull
             }
         ]
     },
     {
+        lable: Locales.__('Window').Title,
         role: 'window',
         submenu: [
             {
+                lable: Locales.__('Window').Min,
                 role: 'minimize'
             },
             {
+                lable: Locales.__('Window').Close,
                 role: 'close'
             }
         ]
     },
     {
+        lable: Locales.__('Help').Title,
         role: 'help',
         submenu: [
             {
-                label: 'Feedback',
+                label: Locales.__('Help').FeedBack,
                 click() {
                     shell.openExternal('https://github.com/wildfirechat/pc-chat/issues');
                 }
             },
             {
-                label: 'Fork me on Github',
+                label: Locales.__('Help').Fork,
                 click() {
                     shell.openExternal('https://github.com/wildfirechat/pc-chat');
                 }
@@ -249,24 +275,26 @@ let mainMenu = [
             //     }
             // }
             {
-                role: 'reload'
+                role: 'reload',
+                label: Locales.__('Help').Reload
             },
             {
-                role: 'forcereload'
+                role: 'forcereload',
+                label: Locales.__('Help').ForceReload
             },
         ]
     }
 ];
 let trayMenu = [
+    // {
+    //     label: `你有 0 条消息`,
+    //     click() {
+    //         mainWindow.show();
+    //         mainWindow.webContents.send('show-messages');
+    //     }
+    // },
     {
-        label: `You have 0 messages`,
-        click() {
-            mainWindow.show();
-            mainWindow.webContents.send('show-messages');
-        }
-    },
-    {
-        label: 'Toggle main window',
+        label: '切换主窗口',
         click() {
             let isVisible = mainWindow.isVisible();
             isVisible ? mainWindow.hide() : mainWindow.show();
@@ -276,7 +304,7 @@ let trayMenu = [
         type: 'separator'
     },
     {
-        label: 'Preferences...',
+        label: '偏好...',
         accelerator: 'Cmd+,',
         click() {
             mainWindow.show();
@@ -284,7 +312,7 @@ let trayMenu = [
         }
     },
     {
-        label: 'Fork me on Github',
+        label: Locales.__('Help').Fork,
         click() {
             shell.openExternal('https://github.com/wildfirechat/pc-chat');
         }
@@ -293,37 +321,46 @@ let trayMenu = [
         type: 'separator'
     },
     {
-        label: 'Toggle DevTools',
+        label: Locales.__('View').ToggleDevtools,
         accelerator: 'Alt+Command+I',
         click() {
             mainWindow.show();
             mainWindow.toggleDevTools();
         }
     },
-    {
-        label: 'Hide menu bar icon',
-        click() {
-            mainWindow.webContents.send('hide-tray');
-        }
-    },
+    // {
+    //     label: 'Hide menu bar icon',
+    //     click() {
+    //         mainWindow.webContents.send('hide-tray');
+    //     }
+    // },
     {
         type: 'separator'
     },
     {
-        label: 'Check for updates',
+        label: Locales.__('Main').Check,
         accelerator: 'Cmd+U',
         click() {
             checkForUpdates();
         }
     },
     {
-        label: 'Quit wildfireChat',
+        label: Locales.__('Main').Quit,
         accelerator: 'Command+Q',
         selector: 'terminate:',
         click() {
             forceQuit = true;
             mainWindow = null;
-            app.quit();
+            global.sharedObj.proto.disconnect(0);
+            console.log('--------------- disconnect', global.sharedObj.proto);
+            var now = new Date();
+            var exitTime = now.getTime() + 1000;
+            while (true) {
+                now = new Date();
+                if (now.getTime() > exitTime)
+                    break;
+            }
+            app.exit(0);
         }
     }
 ];
@@ -331,6 +368,7 @@ let avatarPath = tmp.dirSync();
 let avatarCache = {};
 let avatarPlaceholder = `${__dirname}/src/assets/images/user-fallback.png`;
 const icon = `${__dirname}/src/assets/images/dock.png`;
+let blink = null
 
 async function getIcon(cookies, userid, src) {
     var cached = avatarCache[userid];
@@ -394,7 +432,7 @@ function updateTray(unread = 0) {
     }
 
     // Update unread mesage count
-    trayMenu[0].label = `You have ${unread} messages`;
+    // trayMenu[0].label = `你有 ${unread} 条信息`;
 
     if (settings.showOnTray) {
         if (tray
@@ -403,10 +441,7 @@ function updateTray(unread = 0) {
         }
 
         let contextmenu = Menu.buildFromTemplate(trayMenu);
-        let icon = unread
-            ? `${__dirname}/src/assets/images/icon-new-message.png`
-            : `${__dirname}/src/assets/images/icon.png`
-            ;
+        let icon = `${__dirname}/src/assets/images/icon.png`;
 
         // Make sure the last tray has been destroyed
         setTimeout(() => {
@@ -418,32 +453,28 @@ function updateTray(unread = 0) {
                     tray.popUpContextMenu();
                 });
 
-                let clicked = false;
                 tray.on('click', () => {
-                    if (clicked) {
-                        mainWindow.show();
-                        clicked = false;
-                    } else {
-                        clicked = true;
-                        setTimeout(() => {
-                            clicked = false;
-                        }, 400);
-                    }
+                    let isVisible = mainWindow.isVisible();
+                    isVisible ? mainWindow.hide() : mainWindow.show();
                 });
             }
 
             tray.setImage(icon);
             tray.setContextMenu(contextmenu);
+            execBlink(unread > 0);
+            // Avoid tray icon been recreate
+            updateTray.lastUnread = unread;
         });
     } else {
         if (!tray) return;
 
-        tray.destroy();
+        if (!isOsx) {
+          tray.destroy();
+        }
         tray = null;
     }
 
-    // Avoid tray icon been recreate
-    updateTray.lastUnread = unread;
+
 }
 
 async function autostart() {
@@ -479,21 +510,30 @@ function createMenu() {
     }
 }
 
+function regShortcut() {
+    // if(isWin) {
+        globalShortcut.register('CommandOrControl+G', () => {
+            mainWindow.webContents.toggleDevTools();
+        })
+    // }
+}
+
 const createMainWindow = () => {
     var mainWindowState = windowStateKeeper({
-        defaultWidth: 745,
-        defaultHeight: 500,
+        defaultWidth: 900,
+        defaultHeight: 600,
     });
 
     mainWindow = new BrowserWindow({
         x: mainWindowState.x,
         y: mainWindowState.y,
-        minWidth: 745,
-        minHeight: 450,
-        transparent: true,
+        minWidth: 400,
+        minHeight: 400,
         titleBarStyle: 'hiddenInset',
         backgroundColor: 'none',
-        resizable: false,
+        // 以下两属性设置时会导致win不能正常unmaximize. electron bug
+        // transparent: true,
+        // resizable: false,
         webPreferences: {
             scrollBounce: true
         },
@@ -501,11 +541,10 @@ const createMainWindow = () => {
         icon
     });
 
-    mainWindow.setSize(350, 460);
+    mainWindow.setSize(400, 480);
     mainWindow.loadURL(
         `file://${__dirname}/src/index.html`
     );
-
     mainWindow.webContents.on('did-finish-load', () => {
         try {
             mainWindow.show();
@@ -519,7 +558,7 @@ const createMainWindow = () => {
     });
 
     mainWindow.on('close', e => {
-        if (forceQuit) {
+        if (forceQuit || !tray) {
             mainWindow = null;
             app.quit();
         } else {
@@ -545,6 +584,36 @@ const createMainWindow = () => {
             mainWindow.show();
             mainWindow.focus();
         }
+    });
+
+    ipcMain.on('close-window', event => {
+        mainWindow.hide();
+    });
+
+    // ipcMain.on('min-window', event => {
+    //     mainWindow.minimize();
+    // });
+
+    // ipcMain.on('max-window', event => {
+    //     mainWindow.maximize();
+    // });
+
+    ipcMain.on('unmax-window', event => {
+        mainWindow.unmaximize();
+    });
+
+    ipcMain.on('toggle-max', event => {
+        var isMax = mainWindow.isMaximized();
+        if(isMax){
+            mainWindow.unmaximize();
+        } else {
+            mainWindow.maximize();
+        }
+    });
+
+    ipcMain.on('exec-blink', (event, args) => {
+        var isBlink = args.isBlink;
+        execBlink(isBlink, args.interval);
     });
 
     // TODO 不明白这儿是做什么？
@@ -611,10 +680,9 @@ const createMainWindow = () => {
 
     ipcMain.on('message-unread', (event, args) => {
         var counter = args.counter;
-
-        if (settings.showOnTray) {
+        //if (settings.showOnTray) {
             updateTray(counter);
-        }
+        //}
     });
 
     ipcMain.on('file-paste', (event) => {
@@ -705,6 +773,7 @@ const createMainWindow = () => {
 
     mainWindow.webContents.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8');
     createMenu();
+    regShortcut();
 };
 
 app.setName(pkg.name);
@@ -714,12 +783,46 @@ app.on('ready', createMainWindow);
 app.on('before-quit', () => {
     // Fix issues #14
     forceQuit = true;
+    if (!isOsx) {
+      tray.destroy();
+    }
 });
 app.on('activate', e => {
     if (!mainWindow.isVisible()) {
         mainWindow.show();
     }
 });
+
+function clearBlink() {
+    if(blink){
+        clearInterval(blink)
+    }
+    blink = null
+}
+
+function execBlink (flag, _interval) {
+    let interval = _interval ? _interval : 500;
+    let icon= [`${__dirname}/src/assets/images/icon.png`,
+            `${__dirname}/src/assets/images/Remind_icon.png`];
+    let count = 0;
+    if(flag){
+        if (blink) {
+            return;
+        }
+        blink = setInterval(function(){
+            toggleTrayIcon(icon[count++]);
+            count = count > 1 ? 0 : 1;
+        }, interval);
+    } else {
+        clearBlink();
+        toggleTrayIcon(icon[0]);
+    }
+
+}
+
+function toggleTrayIcon(icon){
+    tray.setImage(icon);
+}
 
 autoUpdater.on('update-not-available', e => {
     dialog.showMessageBox({

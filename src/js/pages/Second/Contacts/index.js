@@ -6,6 +6,7 @@ import randomColor from 'randomcolor';
 
 import classes from './style.css';
 import EventType from '../../../wfc/wfcEvent';
+import stores from '../../../stores';
 
 @inject(stores => ({
     filter: stores.contacts.filter,
@@ -63,7 +64,7 @@ export default class Contacts extends Component {
                                                 dangerouslySetInnerHTML={{ __html: this.props.contactItemName(e) }} />
                                             <p
                                                 className={classes.signature}
-                                                dangerouslySetInnerHTML={{ __html: e.Signature || 'No Signature' }} />
+                                                dangerouslySetInnerHTML={{ __html: e.Signature || '' }} />
                                         </div>
                                     </div>
                                 );
@@ -91,6 +92,7 @@ export default class Contacts extends Component {
     }
 
     componentWillUnmount() {
+        stores.search.reset();
         this.props.event.removeListener(EventType.FriendListUpdate, this.onContactUpdate);
     }
 

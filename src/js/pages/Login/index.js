@@ -21,7 +21,7 @@ export default class Login extends Component {
     loginTimer;
 
     componentDidMount() {
-        axios.defaults.baseURL = Config.APP_SERVER_HOST + ':' + Config.APP_SERVER_PORT;
+        axios.defaults.baseURL = Config.APP_SERVER;
 
         this.getCode();
         this.keepLogin();
@@ -63,7 +63,7 @@ export default class Login extends Component {
     async keepLogin() {
         this.loginTimer = setInterval(() => {
             this.login();
-        }, 2 * 1000);
+        }, 1 * 1000);
     }
 
     async login() {
@@ -96,10 +96,9 @@ export default class Login extends Component {
                     this.qrCode && (<img className="disabledDrag" src={this.qrCode} />)
                 }
 
-                <a href={window.location.pathname + '?' + +new Date()}>Refresh the QR Code</a>
+                <a href={window.location.pathname + '?' + +new Date()}>刷新二维码</a>
 
-                <p>Scan to log in to WildfireChat</p>
-                <p>Log in on phone to use WildfireChat on Web</p>
+                <p>扫码登录野火IM</p>
             </div>
         );
     }
